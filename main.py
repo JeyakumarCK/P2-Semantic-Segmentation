@@ -8,6 +8,7 @@ from tqdm import tqdm
 from moviepy.editor import VideoFileClip
 import numpy as np
 import scipy
+import datetime
 
 # Check TensorFlow Version
 assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), 'Please use TensorFlow version 1.0 or newer.  You are using {}'.format(tf.__version__)
@@ -64,17 +65,17 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
 #    print("vgg_layer7_out.get_shape()=", vgg_layer7_out.get_shape())
     
     # convert the last layer of encoder part to dense layer
-    conv_1x1 = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, 1)
+    conv_1x1 = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, 1, kernel_initializer=tf.truncated_normal_initializer(stddev = 0.01))
     
-    decode_layer_1 = tf.contrib.layers.conv2d_transpose(conv_1x1, num_classes, 4, 2)
-    layer4_out_conv_1x1 = tf.layers.conv2d(vgg_layer4_out, num_classes, 1, 1)
+    decode_layer_1 = tf.layers.conv2d_transpose(conv_1x1, num_classes, 4, 2, padding='SAME', kernel_initializer=tf.truncated_normal_initializer(stddev = 0.01))
+    layer4_out_conv_1x1 = tf.layers.conv2d(vgg_layer4_out, num_classes, 1, 1, kernel_initializer=tf.truncated_normal_initializer(stddev = 0.01))
     decode_layer_1_skip = tf.add(decode_layer_1, layer4_out_conv_1x1)
 
-    decode_layer_2 = tf.contrib.layers.conv2d_transpose(decode_layer_1_skip, num_classes, 4, 2)
-    layer3_out_conv_1x1 = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, 1)
+    decode_layer_2 = tf.layers.conv2d_transpose(decode_layer_1_skip, num_classes, 4, 2, padding='SAME', kernel_initializer=tf.truncated_normal_initializer(stddev = 0.01))
+    layer3_out_conv_1x1 = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, 1, kernel_initializer=tf.truncated_normal_initializer(stddev = 0.01))
     decode_layer_2_skip = tf.add(decode_layer_2, layer3_out_conv_1x1)
 
-    decode_layer_3 = tf.contrib.layers.conv2d_transpose(decode_layer_2_skip, num_classes, 16, 8)
+    decode_layer_3 = tf.layers.conv2d_transpose(decode_layer_2_skip, num_classes, 16, 8, padding='SAME', kernel_initializer=tf.truncated_normal_initializer(stddev = 0.01))
 
     return decode_layer_3
 tests.test_layers(layers)
@@ -115,14 +116,14 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     """
     # TODO: Implement function
     keep_prob_val = 0.70
-    learning_rate_val = 0.0005
+    learning_rate_val = 0.0001
     
     with sess.as_default():
         sess.run(tf.global_variables_initializer())
         
         total_loss = 0.0
         epoch_loss = 0.0
-        print('Started Training... Epochs=', epochs, ", Batch size=", batch_size)
+        print(datetime.datetime.now(), ': Started Training... Epochs =', epochs, ", Batch size =", batch_size, ", learning rate =", learning_rate_val)
         for epoch in tqdm(range(epochs)):
             epoch_loss = 0.0
             for image, label in get_batches_fn(batch_size):
@@ -134,11 +135,11 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
                 epoch_loss += loss
                 total_loss += loss
             
-            print("Epoch {} of {}: ".format(epoch+1, epochs),
+            print(datetime.datetime.now(), ": Epoch {} of {}: ".format(epoch+1, epochs),
                   "Epoch Loss: {:.4f},".format(epoch_loss),
                   "Total Loss: {:.4f}".format(total_loss))
         
-    print('Completed Training Successfully')
+    print(datetime.datetime.now(), ': Completed Training Successfully')
 tests.test_train_nn(train_nn)
 
 
@@ -175,8 +176,8 @@ def run():
         logits, train_op, cross_entropy_loss = optimize(nn_last_layer, correct_label, learning_rate, num_classes)
         
         # TODO: Train NN using the train_nn function
-        epochs = 50 # Tried 10, 50, 100
-        batch_size = 10 # Tried 10, 50, 100
+        epochs = 50
+        batch_size = 4
         train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image, correct_label, keep_prob, learning_rate)
         
         # TODO: Save inference data using helper.save_inference_samples
